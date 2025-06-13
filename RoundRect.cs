@@ -1,7 +1,12 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
 using System.Drawing;
 using System.Drawing.Drawing2D;
 
-namespace JonasKohl.Graphics
+namespace System.Drawing
 {
     /// <summary>
     /// A simple helper class to draw pixel-perfect symmetric rectangles with rounded corners.
@@ -18,9 +23,9 @@ namespace JonasKohl.Graphics
         /// <param name="r">The rectangle to use</param>
         /// <param name="dia">The diameter</param>
         /// <returns>The GraphicsPath which resembles a rounded rectangle</returns>
-        public static GraphicsPath GetRoundRectPath(Rectangle r, int dia)
+        public static void AddRoundRect(this GraphicsPath pPath, Rectangle r, int radius)
         {
-            GraphicsPath pPath = new GraphicsPath();
+            int dia = 2 * radius;
 
             // diameter can't exceed width or height
             if (dia > r.Width) dia = r.Width;
@@ -29,8 +34,8 @@ namespace JonasKohl.Graphics
             // define a corner 
             Rectangle Corner = new Rectangle(r.X, r.Y, dia, dia);
 
-            // begin path
-            pPath.Reset();
+            //// begin path
+            //pPath.Reset();
 
             // top left
             pPath.AddArc(Corner, 180, 90);
@@ -57,10 +62,8 @@ namespace JonasKohl.Graphics
 
             // end path
             pPath.CloseFigure();
-
-            return pPath;
         }
-
+        
         /// <summary>
         /// Draw (outline) a rounded rectangle to a graphics context.
         /// </summary>
@@ -69,52 +72,55 @@ namespace JonasKohl.Graphics
         /// <param name="color">The color of the outline</param>
         /// <param name="radius">The corner radius</param>
         /// <param name="width">The width of the outline</param>
-        public static void DrawRoundRect(System.Drawing.Graphics pGraphics, Rectangle r, Color color, int radius, int width)
+        public static void DrawRoundRect(this System.Drawing.Graphics pGraphics, Pen pen, Rectangle r, int radius)
         {
             int dia = 2 * radius;
+            int width = (int)pen.Width;
 
             // store old page unit
             GraphicsUnit oldPageUnit = pGraphics.PageUnit;
 
             // set to pixel mode
             pGraphics.PageUnit = GraphicsUnit.Pixel;
-
-            // define the pen
-            Pen pen = new Pen(color, 1);
-
+            
             // set pen alignment
+            var penAlignment = pen.Alignment;
             pen.Alignment = PenAlignment.Center;
 
             // get the corner path
-            GraphicsPath path = GetRoundRectPath(r, dia);
-
-            // draw the round rect
-            pGraphics.DrawPath(pen, path);
-
-            // if width > 1
-            for (int i = 1; i < width; i++)
+            using (GraphicsPath path = new GraphicsPath())
             {
-                // left stroke
-                r.Inflate(-1, 0);
-
-                // get the path
-                path = GetRoundRectPath(r, dia);
-
                 // draw the round rect
                 pGraphics.DrawPath(pen, path);
 
-                // up stroke
-                r.Inflate(0, -1);
+                // if width > 1
+                for (int i = 1; i < width; i++)
+                {
+                    // left stroke
+                    r.Inflate(-1, 0);
 
-                // get the path
-                path = GetRoundRectPath(r, dia);
+                    // get the path
+                    path.Reset();
+                    path.AddRoundRect(r, dia);
 
-                // draw the round rect
-                pGraphics.DrawPath(pen, path);
+                    // draw the round rect
+                    pGraphics.DrawPath(pen, path);
+
+                    // up stroke
+                    r.Inflate(0, -1);
+
+                    // get the path
+                    path.Reset();
+                    path.AddRoundRect(r, dia);
+
+                    // draw the round rect
+                    pGraphics.DrawPath(pen, path);
+                }
             }
 
-            // restore page unit
+            // restore
             pGraphics.PageUnit = oldPageUnit;
+            pen.Alignment = penAlignment;
         }
 
         /// <summary>
@@ -125,7 +131,7 @@ namespace JonasKohl.Graphics
         /// <param name="r">The bounding rectangle</param>
         /// <param name="border">The outline (border) color</param>
         /// <param name="radius">The corner radius</param>
-        public static void FillRoundRect(System.Drawing.Graphics pGraphics, Brush pBrush, Rectangle r, Color border, int radius)
+        public static void FillRoundRect(this System.Drawing.Graphics pGraphics, Brush pBrush, Rectangle r, int radius)
         {
             int dia = 2 * radius;
 
@@ -135,20 +141,15 @@ namespace JonasKohl.Graphics
             // set to pixel mode
             pGraphics.PageUnit = GraphicsUnit.Pixel;
 
-            // define the pen
-            Pen pen = new Pen(border, 1);
-
-            // set pen alignment
-            pen.Alignment = PenAlignment.Center;
 
             // get the corner path
-            GraphicsPath path = GetRoundRectPath(r, dia);
+            using (GraphicsPath path = new GraphicsPath())
+            {
+                path.AddRoundRect(r, dia);
 
-            // fill
-            pGraphics.FillPath(pBrush, path);
-
-            // draw the border last so it will be on top in case the color is different
-            pGraphics.DrawPath(pen, path);
+                // fill
+                pGraphics.FillPath(pBrush, path);
+            }
 
             // restore page unit
             pGraphics.PageUnit = oldPageUnit;
